@@ -105,15 +105,16 @@
 
       <div class="mt-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/20 p-4 text-sm text-emerald-100">
         <p class="font-semibold mb-1">部署前需要配置</p>
-        <p>把 `window.SNAKE_SUPABASE_URL` 和 `window.SNAKE_SUPABASE_ANON_KEY` 填到 `config.js`，再部署到 Vercel。</p>
+        <p>把 Firebase Web App 配置填到 `config.js`，或在 Vercel 中设置对应环境变量。</p>
       </div>
     </section>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script>window.SNAKE_SUPABASE_URL = window.SNAKE_SUPABASE_URL || ''; window.SNAKE_SUPABASE_ANON_KEY = window.SNAKE_SUPABASE_ANON_KEY || '';</script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {};</script>
   <script src="./config.js"></script>
-  <script src="./supabase.js"></script>
+  <script src="./firebase.js"></script>
   <script src="./game.js"></script>
 </body>
 </html>
