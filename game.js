@@ -18,7 +18,9 @@ const tileCount = canvas.width / gridSize;
 const initialSpeed = 140;
 const minSpeed = 70;
 const speedStep = 4;
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
+let audioContext = null;
 let snake = [];
 let food = { x: 10, y: 10 };
 let direction = { x: 1, y: 0 };
@@ -36,6 +38,64 @@ bestEl.textContent = String(best);
 const storedPlayerId = localStorage.getItem('snake-player-id');
 if (storedPlayerId) {
   playerIdInput.value = storedPlayerId;
+}
+
+function ensureAudioContext() {
+  if (!AudioContextClass) {
+    return null;
+  }
+
+  if (!audioContext) {
+    audioContext = new AudioContextClass();
+  }
+
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
+  }
+
+  return audioContext;
+}
+
+function playTone({ startFrequency, endFrequency, duration, volume }) {
+  const context = ensureAudioContext();
+  if (!context) {
+    return;
+  }
+
+  const oscillator = context.createOscillator();
+  const gainNode = context.createGain();
+  const now = context.currentTime;
+
+  oscillator.type = 'triangle';
+  oscillator.connect(gainNode);
+  gainNode.connect(context.destination);
+
+  oscillator.frequency.setValueAtTime(startFrequency, now);
+  oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+
+  gainNode.gain.setValueAtTime(volume, now);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  oscillator.start(now);
+  oscillator.stop(now + duration);
+}
+
+function playTurnSound() {
+  playTone({
+    startFrequency: 300,
+    endFrequency: 400,
+    duration: 0.1,
+    volume: 0.05
+  });
+}
+
+function playDeathSound() {
+  playTone({
+    startFrequency: 420,
+    endFrequency: 120,
+    duration: 0.3,
+    volume: 0.08
+  });
 }
 
 function resetGame() {
@@ -182,6 +242,7 @@ function updateDirection(next) {
   const opposite = direction.x + next.x === 0 && direction.y + next.y === 0;
   if (!opposite) {
     queuedDirection = next;
+    playTurnSound();
   }
 }
 
@@ -200,6 +261,7 @@ function gameLoop() {
   const hitsSelf = snake.some((segment) => segment.x === head.x && segment.y === head.y);
 
   if (hitsWall || hitsSelf) {
+    playDeathSound();
     gameOver();
     return;
   }
