@@ -1,3 +1,5 @@
+-- 执行完成后，还需要到 Supabase 的 Realtime / Replication 页面，把 public.scores 加入 realtime publication。
+
 create extension if not exists pgcrypto;
 
 create table if not exists public.scores (

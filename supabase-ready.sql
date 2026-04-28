@@ -5,6 +5,7 @@
 -- 2) 排行榜索引
 -- 3) 匿名读写策略
 -- 4) get_leaderboard 排行榜函数
+-- 额外需要：到 Supabase 的 Realtime / Replication 页面，把 public.scores 加入 realtime publication
 
 create extension if not exists pgcrypto;
 

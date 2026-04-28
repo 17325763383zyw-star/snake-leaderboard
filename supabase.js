@@ -4,6 +4,10 @@ const refreshLeaderboardBtn = document.getElementById('refreshLeaderboardBtn');
 
 let supabaseClient = null;
 let supabaseConfigPromise = null;
+let leaderboardChannel = null;
+let leaderboardRefreshTimer = null;
+let leaderboardIsLoading = false;
+let leaderboardRealtimeReady = false;
 
 async function ensureSupabaseClient() {
   if (supabaseClient) {
@@ -169,17 +173,87 @@ async function queryLeaderboard() {
     }));
 }
 
-window.loadLeaderboard = async function loadLeaderboard() {
+async function fetchAndRenderLeaderboard(options = {}) {
+  const { silent = false } = options;
   const client = await ensureSupabaseClient();
   if (!client) {
     setLeaderboardStatus('请先配置 Supabase，支持填写 config.js 或在 Vercel 中设置环境变量。', 'warning');
     return;
   }
 
-  setLeaderboardStatus('正在加载排行榜...');
+  if (leaderboardIsLoading) {
+    return;
+  }
 
-  const rows = await queryLeaderboard();
-  renderLeaderboard(rows);
+  leaderboardIsLoading = true;
+
+  try {
+    if (!silent) {
+      setLeaderboardStatus('正在加载排行榜...');
+    }
+
+    const rows = await queryLeaderboard();
+    renderLeaderboard(rows);
+  } finally {
+    leaderboardIsLoading = false;
+  }
+}
+
+function scheduleLeaderboardReload(delay = 300) {
+  if (leaderboardRefreshTimer) {
+    clearTimeout(leaderboardRefreshTimer);
+  }
+
+  leaderboardRefreshTimer = window.setTimeout(async () => {
+    leaderboardRefreshTimer = null;
+
+    try {
+      await fetchAndRenderLeaderboard({ silent: true });
+    } catch (error) {
+      console.error(error);
+      setLeaderboardStatus('实时同步失败：' + (error.message || '请稍后手动刷新'), 'error');
+    }
+  }, delay);
+}
+
+async function initLeaderboardRealtime() {
+  const client = await ensureSupabaseClient();
+  if (!client || leaderboardChannel) {
+    return;
+  }
+
+  leaderboardChannel = client
+    .channel('leaderboard-scores')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'scores'
+      },
+      () => {
+        scheduleLeaderboardReload();
+      }
+    )
+    .subscribe((status) => {
+      leaderboardRealtimeReady = status === 'SUBSCRIBED';
+    });
+}
+
+function cleanupLeaderboardRealtime() {
+  if (leaderboardRefreshTimer) {
+    clearTimeout(leaderboardRefreshTimer);
+    leaderboardRefreshTimer = null;
+  }
+
+  if (supabaseClient && leaderboardChannel) {
+    supabaseClient.removeChannel(leaderboardChannel);
+    leaderboardChannel = null;
+  }
+}
+
+window.loadLeaderboard = async function loadLeaderboard() {
+  await fetchAndRenderLeaderboard({ silent: false });
 };
 
 window.submitScoreToSupabase = async function submitScoreToSupabase(playerName, score) {
@@ -214,9 +288,12 @@ refreshLeaderboardBtn.addEventListener('click', async () => {
   }
 });
 
+window.addEventListener('beforeunload', cleanupLeaderboardRealtime);
+
 (async () => {
   try {
     await window.loadLeaderboard();
+    await initLeaderboardRealtime();
   } catch (error) {
     console.error(error);
     setLeaderboardStatus('排行榜加载失败：' + (error.message || '请检查 Supabase 配置'), 'error');
