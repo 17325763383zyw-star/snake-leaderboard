@@ -21,6 +21,8 @@ const speedStep = 4;
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
 let audioContext = null;
+let backgroundMusic = null;
+let isMusicPlaying = false;
 let snake = [];
 let food = { x: 10, y: 10 };
 let direction = { x: 1, y: 0 };
@@ -34,6 +36,8 @@ let isPaused = false;
 let isGameOver = false;
 
 bestEl.textContent = String(best);
+
+backgroundMusic = document.getElementById('backgroundMusic');
 
 const storedPlayerId = localStorage.getItem('snake-player-id');
 if (storedPlayerId) {
@@ -132,6 +136,13 @@ function startGame() {
   isPaused = false;
   pauseBtn.textContent = '暂停';
   hideOverlay();
+
+  if (backgroundMusic && !isMusicPlaying) {
+    backgroundMusic.volume = 0.1;
+    backgroundMusic.play().catch(() => {});
+    isMusicPlaying = true;
+  }
+
   gameTimer = setInterval(gameLoop, gameSpeed);
 }
 
