@@ -12,6 +12,7 @@ const playerIdInput = document.getElementById('playerIdInput');
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const controlButtons = document.querySelectorAll('.control-btn');
+const soundToggle = document.getElementById('soundToggle');
 
 const gridSize = 20;
 const tileCount = canvas.width / gridSize;
@@ -34,10 +35,25 @@ let gameSpeed = initialSpeed;
 let isRunning = false;
 let isPaused = false;
 let isGameOver = false;
+let soundEnabled = localStorage.getItem('snake-sound-enabled') !== 'false'; // 默认开启
+
+// 设置音效开关的初始状态
+soundToggle.checked = soundEnabled;
 
 bestEl.textContent = String(best);
 
 backgroundMusic = document.getElementById('backgroundMusic');
+
+// 监听音效开关
+soundToggle.addEventListener('change', () => {
+  soundEnabled = soundToggle.checked;
+  localStorage.setItem('snake-sound-enabled', soundEnabled);
+  if (soundEnabled) {
+    backgroundMusic.volume = 0.1;
+  } else {
+    backgroundMusic.volume = 0;
+  }
+});
 
 const storedPlayerId = localStorage.getItem('snake-player-id');
 if (storedPlayerId) {
@@ -94,12 +110,155 @@ function playTurnSound() {
 }
 
 function playDeathSound() {
+  if (!soundEnabled) return;
   playTone({
     startFrequency: 420,
     endFrequency: 120,
     duration: 0.3,
     volume: 0.08
   });
+}
+
+function playEatSound() {
+  if (!soundEnabled) return;
+
+  const context = ensureAudioContext();
+  if (!context) return;
+
+  // 创建和弦音效
+  const oscillator1 = context.createOscillator();
+  const oscillator2 = context.createOscillator();
+  const gainNode = context.createGain();
+
+  oscillator1.connect(gainNode);
+  oscillator2.connect(gainNode);
+  gainNode.connect(context.destination);
+
+  // 设置频率 - 愉悦的大三和弦
+  oscillator1.frequency.setValueAtTime(523.25, context.currentTime); // C5
+  oscillator1.frequency.exponentialRampToValueAtTime(783.99, context.currentTime + 0.1); // G5
+
+  oscillator2.frequency.setValueAtTime(659.25, context.currentTime); // E5
+  oscillator2.frequency.exponentialRampToValueAtTime(987.77, context.currentTime + 0.1); // B5
+
+  // 音量包络
+  gainNode.gain.setValueAtTime(0.3, context.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.15);
+
+  oscillator1.start(context.currentTime);
+  oscillator2.start(context.currentTime);
+  oscillator1.stop(context.currentTime + 0.15);
+  oscillator2.stop(context.currentTime + 0.15);
+}
+
+// 创建粒子特效
+function createParticles(x, y) {
+  const container = document.querySelector('.relative'); // 游戏容器
+  if (!container) return;
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  // 计算粒子在容器中的位置
+  const pixelX = (x * gridSize + gridSize / 2) * (canvasRect.width / canvas.width);
+  const pixelY = (y * gridSize + gridSize / 2) * (canvasRect.height / canvas.height);
+
+  const colors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#ffffff', '#fbbf24'];
+
+  // 创建爆炸粒子
+  for (let i = 0; i < 12; i++) {
+    const particle = document.createElement('div');
+    const size = Math.random() * 10 + 4;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    particle.style.cssText = `
+      position: absolute;
+      width: ${size}px;
+      height: ${size}px;
+      background: ${color};
+      border-radius: 50%;
+      left: ${pixelX}px;
+      top: ${pixelY}px;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 0 ${size}px ${color};
+    `;
+
+    const angle = Math.random() * Math.PI * 2;
+    const distance = Math.random() * 60 + 30;
+    const endX = Math.cos(angle) * distance;
+    const endY = Math.sin(angle) * distance;
+
+    particle.animate([
+      {
+        transform: 'translate(-50%, -50%) scale(1)',
+        opacity: 1
+      },
+      {
+        transform: `translate(calc(-50% + ${endX}px), calc(-50% + ${endY}px)) scale(0)`,
+        opacity: 0
+      }
+    ], {
+      duration: 800,
+      easing: 'cubic-bezier(0, 0.5, 0.5, 1)'
+    });
+
+    container.appendChild(particle);
+    setTimeout(() => particle.remove(), 800);
+  }
+
+  // 创建光环效果
+  const ring = document.createElement('div');
+  ring.style.cssText = `
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 3px solid #10b981;
+    border-radius: 50%;
+    left: ${pixelX}px;
+    top: ${pixelY}px;
+    pointer-events: none;
+    z-index: 9;
+    box-shadow: 0 0 20px #10b981, inset 0 0 10px rgba(16, 185, 129, 0.3);
+  `;
+
+  ring.animate([
+    { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
+    { transform: 'translate(-50%, -50%) scale(3)', opacity: 0 }
+  ], {
+    duration: 600,
+    easing: 'ease-out'
+  });
+
+  container.appendChild(ring);
+  setTimeout(() => ring.remove(), 600);
+
+  // 创建闪光文字
+  const flashText = document.createElement('div');
+  flashText.textContent = '+10';
+  flashText.style.cssText = `
+    position: absolute;
+    left: ${pixelX}px;
+    top: ${pixelY - 30}px;
+    color: #10b981;
+    font-weight: bold;
+    font-size: 20px;
+    pointer-events: none;
+    z-index: 11;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+    transform: translateX(-50%);
+  `;
+
+  flashText.animate([
+    { transform: 'translate(-50%, 0) scale(1)', opacity: 1 },
+    { transform: 'translate(-50%, -40px) scale(1.2)', opacity: 0 }
+  ], {
+    duration: 700,
+    easing: 'ease-out'
+  });
+
+  container.appendChild(flashText);
+  setTimeout(() => flashText.remove(), 700);
 }
 
 function resetGame() {
@@ -138,7 +297,7 @@ function startGame() {
   hideOverlay();
 
   if (backgroundMusic && !isMusicPlaying) {
-    backgroundMusic.volume = 0.1;
+    backgroundMusic.volume = soundEnabled ? 0.1 : 0;
     backgroundMusic.play().catch(() => {});
     isMusicPlaying = true;
   }
@@ -282,6 +441,13 @@ function gameLoop() {
   if (head.x === food.x && head.y === food.y) {
     score += 10;
     scoreEl.textContent = String(score);
+
+    // 播放吃果子音效
+    playEatSound();
+
+    // 创建视觉特效
+    createParticles(food.x, food.y);
+
     placeFood();
 
     if (gameSpeed > minSpeed) {
