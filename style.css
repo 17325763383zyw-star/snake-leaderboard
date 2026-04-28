@@ -83,3 +83,34 @@ canvas {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* 粒子特效样式 */
+.particle {
+  position: absolute;
+  pointer-events: none;
+  animation: particle-explode 0.6s ease-out forwards;
+}
+
+@keyframes particle-explode {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+  }
+}
+
+/* 音效开关样式 */
+#soundToggle {
+  transition: all 0.2s ease;
+}
+
+#soundToggle:hover {
+  transform: scale(1.1);
+}
+
+#soundToggle:checked {
+  background-color: #10b981;
+}
