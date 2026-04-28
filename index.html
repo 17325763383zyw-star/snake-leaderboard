@@ -51,6 +51,12 @@
         <button id="pauseBtn" class="secondary-btn flex-1">暂停</button>
       </div>
 
+      <div class="flex gap-3 mb-5">
+        <button id="testAudioBtn" class="secondary-btn flex-1 text-sm">
+          <i class="fa fa-volume-up mr-2"></i>测试音频
+        </button>
+      </div>
+
       <div class="grid grid-cols-3 gap-3 max-w-[220px] mx-auto select-none mb-5">
         <div></div>
         <button data-dir="up" class="control-btn">
@@ -119,7 +125,13 @@
   </div>
 
   <audio id="backgroundMusic" loop preload="auto">
-    <source src="https://cdn.pixabay.com/audio/2022/03/24/audio_c8c8a73467.mp3" type="audio/mpeg">
+    <!-- 主要音源：免费的电子游戏音乐 -->
+    <source src="https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3" type="audio/mpeg">
+    <!-- 备用音源1：轻松的背景音乐 -->
+    <source src="https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mpeg">
+    <!-- 备用音源2：游戏风格音乐 -->
+    <source src="https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a73467.mp3" type="audio/mpeg">
+    <!-- 备用音源3：8-bit游戏音乐 -->
     <source src="https://cdn.pixabay.com/audio/2022/01/18/audio_d0a13f69d2.mp3" type="audio/mpeg">
   </audio>
 

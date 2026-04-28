@@ -14,6 +14,7 @@ const pauseBtn = document.getElementById('pauseBtn');
 const controlButtons = document.querySelectorAll('.control-btn');
 const soundToggle = document.getElementById('soundToggle');
 const musicIndicator = document.getElementById('musicIndicator');
+const testAudioBtn = document.getElementById('testAudioBtn');
 
 const gridSize = 20;
 const tileCount = canvas.width / gridSize;
@@ -59,11 +60,12 @@ function initAudioSystem() {
 
   // 监听音频事件
   backgroundMusic.addEventListener('canplaythrough', () => {
-    console.log('✓ 背景音乐加载完成，准备播放');
+    console.log('✅ 背景音乐加载完成，可以播放');
+    console.log('📁 当前音频源:', backgroundMusic.currentSrc);
   });
 
   backgroundMusic.addEventListener('play', () => {
-    console.log('✓ 背景音乐开始播放');
+    console.log('✅ 背景音乐开始播放');
     isMusicPlaying = true;
     updateMusicIndicator(true);
   });
@@ -75,8 +77,18 @@ function initAudioSystem() {
   });
 
   backgroundMusic.addEventListener('error', (e) => {
-    console.error('✗ 背景音乐加载失败:', e);
+    console.error('❌ 背景音乐加载失败:', e);
+    console.log('📋 尝试的音频源:', backgroundMusic.src);
+    console.log('💡 建议：检查网络连接或更换音频源');
     updateMusicIndicator(false);
+  });
+
+  backgroundMusic.addEventListener('stalled', () => {
+    console.warn('⚠️ 音频加载停滞，网络可能较慢');
+  });
+
+  backgroundMusic.addEventListener('waiting', () => {
+    console.log('⏳ 音频缓冲中...');
   });
 
   // 🚀 关键：监听用户的第一次交互来启动音频
@@ -124,14 +136,27 @@ function startBackgroundMusic() {
   ensureAudioContext();
 
   if (!isMusicPlaying) {
+    console.log('🎵 尝试启动背景音乐...');
+    console.log('🔊 音效开关:', soundEnabled ? '开启' : '关闭');
+    console.log('📁 音频源:', backgroundMusic.src);
+
     backgroundMusic.currentTime = 0;
     backgroundMusic.volume = 0.3;
+
     backgroundMusic.play()
       .then(() => {
-        console.log('✅ 背景音乐播放成功');
+        console.log('✅ 背景音乐播放成功！');
+        console.log('🎵 当前播放:', backgroundMusic.currentSrc);
       })
       .catch((error) => {
-        console.warn('⚠️ 背景音乐播放失败:', error.message);
+        console.error('❌ 背景音乐播放失败:', error.name, error.message);
+        if (error.name === 'NotAllowedError') {
+          console.log('💡 浏览器阻止了自动播放，请尝试点击页面或按键');
+        } else if (error.name === 'NotSupportedError') {
+          console.log('💡 音频格式不支持或文件损坏');
+        } else {
+          console.log('💡 其他错误:', error.message);
+        }
       });
   }
 }
@@ -153,6 +178,55 @@ function updateMusicIndicator(isPlaying) {
     musicIndicator.classList.add('hidden');
     musicIndicator.classList.remove('flex');
   }
+}
+
+// 测试音频功能
+function testAudio() {
+  console.log('🧪 开始音频测试...');
+  console.log('📊 音频系统状态:');
+  console.log('  - 音效开关:', soundEnabled ? '开启' : '关闭');
+  console.log('  - 音乐播放状态:', isMusicPlaying ? '播放中' : '未播放');
+  console.log('  - 用户交互状态:', hasUserInteracted ? '已交互' : '未交互');
+  console.log('  - AudioContext状态:', audioContext ? audioContext.state : '未创建');
+
+  const audio = document.getElementById('backgroundMusic');
+  console.log('📁 音频元素信息:');
+  console.log('  - 音频源:', audio.src);
+  console.log('  - 当前源:', audio.currentSrc);
+  console.log('  - 就绪状态:', audio.readyState);
+  console.log('  - 网络状态:', audio.networkState);
+
+  // 尝试播放音频
+  ensureAudioContext();
+  hasUserInteracted = true;
+
+  audio.currentTime = 0;
+  audio.volume = 0.5;
+
+  audio.play()
+    .then(() => {
+      console.log('✅ 音频测试成功！音乐正在播放');
+      alert('✅ 音频测试成功！你应该能听到背景音乐了。');
+    })
+    .catch((error) => {
+      console.error('❌ 音频测试失败:', error);
+      let errorMsg = '音频测试失败：\n\n';
+      errorMsg += `错误类型: ${error.name}\n`;
+      errorMsg += `错误信息: ${error.message}\n\n`;
+
+      if (error.name === 'NotAllowedError') {
+        errorMsg += '原因：浏览器阻止了自动播放\n';
+        errorMsg += '解决：请先点击页面其他位置，再试一次';
+      } else if (error.name === 'NotSupportedError') {
+        errorMsg += '原因：音频格式不支持或文件损坏\n';
+        errorMsg += '解决：需要更换音频源';
+      } else {
+        errorMsg += '原因：网络问题或其他错误\n';
+        errorMsg += '解决：请检查网络连接或刷新页面';
+      }
+
+      alert(errorMsg);
+    });
 }
 
 // 监听音效开关
@@ -705,6 +779,7 @@ startBtn.addEventListener('click', () => {
 });
 pauseBtn.addEventListener('click', togglePause);
 submitScoreBtn.addEventListener('click', handleScoreSubmit);
+testAudioBtn.addEventListener('click', testAudio);
 
 // 🎵 初始化音频系统（页面加载时立即执行）
 initAudioSystem();
