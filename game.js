@@ -44,12 +44,37 @@ bestEl.textContent = String(best);
 
 backgroundMusic = document.getElementById('backgroundMusic');
 
+// 监听音频加载状态
+backgroundMusic.addEventListener('canplaythrough', () => {
+  console.log('✓ 背景音乐加载完成');
+});
+
+backgroundMusic.addEventListener('error', (e) => {
+  console.error('✗ 背景音乐加载失败:', e);
+});
+
+// 监听音频播放状态
+backgroundMusic.addEventListener('play', () => {
+  console.log('✓ 背景音乐正在播放');
+  isMusicPlaying = true;
+});
+
+backgroundMusic.addEventListener('pause', () => {
+  console.log('⏸️ 背景音乐已暂停');
+  isMusicPlaying = false;
+});
+
 // 监听音效开关
 soundToggle.addEventListener('change', () => {
   soundEnabled = soundToggle.checked;
   localStorage.setItem('snake-sound-enabled', soundEnabled);
+
   if (soundEnabled) {
-    backgroundMusic.volume = 0.1;
+    backgroundMusic.volume = 0.3;
+    // 如果游戏正在运行但没有播放音乐，尝试播放
+    if (isRunning && !isMusicPlaying) {
+      backgroundMusic.play().catch(() => {});
+    }
   } else {
     backgroundMusic.volume = 0;
   }
@@ -74,6 +99,25 @@ function ensureAudioContext() {
   }
 
   return audioContext;
+}
+
+// 初始化音频系统
+function initAudio() {
+  // 确保AudioContext在用户交互后被激活
+  document.addEventListener('click', () => {
+    ensureAudioContext();
+    // 尝试播放背景音乐（如果还没播放）
+    if (backgroundMusic && !isMusicPlaying && soundEnabled) {
+      backgroundMusic.volume = 0.3;
+      backgroundMusic.play().catch(() => {});
+    }
+  }, { once: true });
+
+  // 预加载背景音乐
+  if (backgroundMusic) {
+    backgroundMusic.load();
+    console.log('🎵 背景音乐预加载中...');
+  }
 }
 
 function playTone({ startFrequency, endFrequency, duration, volume }) {
@@ -297,9 +341,22 @@ function startGame() {
   hideOverlay();
 
   if (backgroundMusic && !isMusicPlaying) {
-    backgroundMusic.volume = soundEnabled ? 0.1 : 0;
-    backgroundMusic.play().catch(() => {});
-    isMusicPlaying = true;
+    backgroundMusic.volume = soundEnabled ? 0.3 : 0; // 提高音量
+    // 确保音频已加载
+    if (backgroundMusic.readyState < 2) {
+      backgroundMusic.load();
+    }
+    // 播放音频并处理可能的错误
+    backgroundMusic.play().then(() => {
+      console.log('✓ 背景音乐开始播放');
+      isMusicPlaying = true;
+    }).catch((error) => {
+      console.warn('⚠️ 背景音乐播放失败:', error.message);
+      // 如果是自动播放策略问题，提示用户
+      if (error.name === 'NotAllowedError') {
+        console.log('💡 浏览器阻止了自动播放，请点击页面后重试');
+      }
+    });
   }
 
   gameTimer = setInterval(gameLoop, gameSpeed);
@@ -578,9 +635,16 @@ controlButtons.forEach((button) => {
   });
 });
 
-startBtn.addEventListener('click', startGame);
+startBtn.addEventListener('click', () => {
+  // 确保AudioContext在用户交互时被激活
+  ensureAudioContext();
+  startGame();
+});
 pauseBtn.addEventListener('click', togglePause);
 submitScoreBtn.addEventListener('click', handleScoreSubmit);
 
+// 初始化音频系统
+initAudio();
+
 resetGame();
-showOverlay('准备开始', '点击“开始游戏”或按 Enter，冲击排行榜。');
+showOverlay('准备开始', '点击”开始游戏”或按 Enter，冲击排行榜。');
