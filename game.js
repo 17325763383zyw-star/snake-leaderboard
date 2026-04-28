@@ -13,6 +13,7 @@ const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const controlButtons = document.querySelectorAll('.control-btn');
 const soundToggle = document.getElementById('soundToggle');
+const musicIndicator = document.getElementById('musicIndicator');
 
 const gridSize = 20;
 const tileCount = canvas.width / gridSize;
@@ -24,6 +25,8 @@ const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioContext = null;
 let backgroundMusic = null;
 let isMusicPlaying = false;
+let hasUserInteracted = false; // 跟踪用户是否已交互
+let audioInitialized = false; // 音频系统是否已初始化
 let snake = [];
 let food = { x: 10, y: 10 };
 let direction = { x: 1, y: 0 };
@@ -44,25 +47,113 @@ bestEl.textContent = String(best);
 
 backgroundMusic = document.getElementById('backgroundMusic');
 
-// 监听音频加载状态
-backgroundMusic.addEventListener('canplaythrough', () => {
-  console.log('✓ 背景音乐加载完成');
-});
+// 🎵 重新设计的音频系统
+function initAudioSystem() {
+  if (audioInitialized) return;
 
-backgroundMusic.addEventListener('error', (e) => {
-  console.error('✗ 背景音乐加载失败:', e);
-});
+  console.log('🎵 初始化音频系统...');
 
-// 监听音频播放状态
-backgroundMusic.addEventListener('play', () => {
-  console.log('✓ 背景音乐正在播放');
-  isMusicPlaying = true;
-});
+  // 设置背景音乐
+  backgroundMusic.volume = soundEnabled ? 0.3 : 0;
+  backgroundMusic.load();
 
-backgroundMusic.addEventListener('pause', () => {
-  console.log('⏸️ 背景音乐已暂停');
-  isMusicPlaying = false;
-});
+  // 监听音频事件
+  backgroundMusic.addEventListener('canplaythrough', () => {
+    console.log('✓ 背景音乐加载完成，准备播放');
+  });
+
+  backgroundMusic.addEventListener('play', () => {
+    console.log('✓ 背景音乐开始播放');
+    isMusicPlaying = true;
+    updateMusicIndicator(true);
+  });
+
+  backgroundMusic.addEventListener('pause', () => {
+    console.log('⏸️ 背景音乐暂停');
+    isMusicPlaying = false;
+    updateMusicIndicator(false);
+  });
+
+  backgroundMusic.addEventListener('error', (e) => {
+    console.error('✗ 背景音乐加载失败:', e);
+    updateMusicIndicator(false);
+  });
+
+  // 🚀 关键：监听用户的第一次交互来启动音频
+  function startAudioOnInteraction() {
+    if (!hasUserInteracted) {
+      hasUserInteracted = true;
+      console.log('👆 用户首次交互，启动音频系统');
+
+      // 激活AudioContext
+      ensureAudioContext();
+
+      // 立即开始播放背景音乐
+      if (soundEnabled && !isMusicPlaying) {
+        backgroundMusic.play()
+          .then(() => {
+            console.log('✅ 背景音乐自动播放成功！');
+          })
+          .catch((error) => {
+            console.warn('⚠️ 背景音乐播放失败:', error.message);
+          });
+      }
+    }
+  }
+
+  // 监听所有可能的用户交互事件
+  const interactionEvents = [
+    'click', 'keydown', 'touchstart', 'mousedown',
+    'pointerdown', 'touchmove', 'scroll'
+  ];
+
+  interactionEvents.forEach(event => {
+    document.addEventListener(event, startAudioOnInteraction, {
+      once: false,
+      passive: true
+    });
+  });
+
+  audioInitialized = true;
+}
+
+// 启动背景音乐
+function startBackgroundMusic() {
+  if (!soundEnabled) return;
+
+  ensureAudioContext();
+
+  if (!isMusicPlaying) {
+    backgroundMusic.currentTime = 0;
+    backgroundMusic.volume = 0.3;
+    backgroundMusic.play()
+      .then(() => {
+        console.log('✅ 背景音乐播放成功');
+      })
+      .catch((error) => {
+        console.warn('⚠️ 背景音乐播放失败:', error.message);
+      });
+  }
+}
+
+// 停止背景音乐
+function stopBackgroundMusic() {
+  if (isMusicPlaying) {
+    backgroundMusic.pause();
+    backgroundMusic.currentTime = 0;
+  }
+}
+
+// 更新音乐指示器
+function updateMusicIndicator(isPlaying) {
+  if (isPlaying && soundEnabled) {
+    musicIndicator.classList.remove('hidden');
+    musicIndicator.classList.add('flex');
+  } else {
+    musicIndicator.classList.add('hidden');
+    musicIndicator.classList.remove('flex');
+  }
+}
 
 // 监听音效开关
 soundToggle.addEventListener('change', () => {
@@ -70,13 +161,19 @@ soundToggle.addEventListener('change', () => {
   localStorage.setItem('snake-sound-enabled', soundEnabled);
 
   if (soundEnabled) {
+    // 开启音效
     backgroundMusic.volume = 0.3;
-    // 如果游戏正在运行但没有播放音乐，尝试播放
-    if (isRunning && !isMusicPlaying) {
-      backgroundMusic.play().catch(() => {});
+    // 如果游戏正在运行但没有播放音乐，立即播放
+    if (hasUserInteracted && !isMusicPlaying) {
+      startBackgroundMusic();
     }
   } else {
+    // 关闭音效
     backgroundMusic.volume = 0;
+    // 也可以选择暂停音乐
+    // if (isMusicPlaying) {
+    //   stopBackgroundMusic();
+    // }
   }
 });
 
@@ -99,25 +196,6 @@ function ensureAudioContext() {
   }
 
   return audioContext;
-}
-
-// 初始化音频系统
-function initAudio() {
-  // 确保AudioContext在用户交互后被激活
-  document.addEventListener('click', () => {
-    ensureAudioContext();
-    // 尝试播放背景音乐（如果还没播放）
-    if (backgroundMusic && !isMusicPlaying && soundEnabled) {
-      backgroundMusic.volume = 0.3;
-      backgroundMusic.play().catch(() => {});
-    }
-  }, { once: true });
-
-  // 预加载背景音乐
-  if (backgroundMusic) {
-    backgroundMusic.load();
-    console.log('🎵 背景音乐预加载中...');
-  }
 }
 
 function playTone({ startFrequency, endFrequency, duration, volume }) {
@@ -340,24 +418,8 @@ function startGame() {
   pauseBtn.textContent = '暂停';
   hideOverlay();
 
-  if (backgroundMusic && !isMusicPlaying) {
-    backgroundMusic.volume = soundEnabled ? 0.3 : 0; // 提高音量
-    // 确保音频已加载
-    if (backgroundMusic.readyState < 2) {
-      backgroundMusic.load();
-    }
-    // 播放音频并处理可能的错误
-    backgroundMusic.play().then(() => {
-      console.log('✓ 背景音乐开始播放');
-      isMusicPlaying = true;
-    }).catch((error) => {
-      console.warn('⚠️ 背景音乐播放失败:', error.message);
-      // 如果是自动播放策略问题，提示用户
-      if (error.name === 'NotAllowedError') {
-        console.log('💡 浏览器阻止了自动播放，请点击页面后重试');
-      }
-    });
-  }
+  // 🎵 立即启动背景音乐
+  startBackgroundMusic();
 
   gameTimer = setInterval(gameLoop, gameSpeed);
 }
@@ -636,15 +698,16 @@ controlButtons.forEach((button) => {
 });
 
 startBtn.addEventListener('click', () => {
-  // 确保AudioContext在用户交互时被激活
-  ensureAudioContext();
+  // 标记用户已交互
+  hasUserInteracted = true;
+  // 开始游戏（内部会启动背景音乐）
   startGame();
 });
 pauseBtn.addEventListener('click', togglePause);
 submitScoreBtn.addEventListener('click', handleScoreSubmit);
 
-// 初始化音频系统
-initAudio();
+// 🎵 初始化音频系统（页面加载时立即执行）
+initAudioSystem();
 
 resetGame();
 showOverlay('准备开始', '点击”开始游戏”或按 Enter，冲击排行榜。');
