@@ -1,6 +1,7 @@
 const leaderboardStatusEl = document.getElementById('leaderboardStatus');
 const leaderboardListEl = document.getElementById('leaderboardList');
 const refreshLeaderboardBtn = document.getElementById('refreshLeaderboardBtn');
+const LEADERBOARD_LIMIT = 5;
 
 let firebaseApp = null;
 let firebaseDb = null;
@@ -122,7 +123,7 @@ function normalizeLeaderboardRows(scoresData) {
       }
       return new Date(a.achieved_at) - new Date(b.achieved_at);
     })
-    .slice(0, 10);
+    .slice(0, LEADERBOARD_LIMIT);
 }
 
 function renderLeaderboard(scoresData) {
